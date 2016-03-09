@@ -1,3 +1,6 @@
 = Mei
 
-This project rocks and uses MIT-LICENSE.
+This adds a Metadata Enrichment Interface to a Hydra / ActiveFedora based project and uses Linked Data Fragments to resolve uris.
+
+You would install this (once implemented) by adding the following to your Gemfile:
+gem 'mei'
