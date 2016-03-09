@@ -1,0 +1,14 @@
+default: &default
+  form_field_ids: ['based_near', 'lcsh_subject', 'homosaurus_subject']
+  adapters: [:geonames, :lcsh, :homosaurus]
+  solr_field: ['lcsh_subject_ssim']
+  ldf_server: http://localhost:3005/
+
+development:
+  <<: *default
+
+test:
+  <<: *default
+
+production:
+  <<: *default

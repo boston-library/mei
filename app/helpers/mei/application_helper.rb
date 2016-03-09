@@ -1,0 +1,2 @@
+module Mei::ApplicationHelper
+end
