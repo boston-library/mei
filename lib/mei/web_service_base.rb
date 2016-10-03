@@ -13,7 +13,7 @@ module Mei
         when Net::HTTPSuccess     then response
         when Net::HTTPRedirection then fetch(response['location'], limit - 1)
         else
-          raise "#{uri_str} and the response was: #{response.to_yaml}
+          raise "#{uri_str} and the response was: #{response.to_yaml}"
           response.error!
       end
     end
