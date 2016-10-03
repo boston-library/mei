@@ -32,7 +32,7 @@ module Mei
     # mix-in to retreive and parse JSON content from the web
     def get_json(url)
       r = Mei::WebServiceBase.fetch(url)
-      JSON.parse(r)
+      JSON.parse(r.body)
     end
 
     def request_options
