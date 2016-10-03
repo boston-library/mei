@@ -140,7 +140,7 @@ module Mei
 
       #xml_response = Nokogiri::XML(response).remove_namespaces!
 
-      repo = pop_graph(subject)
+      repo = ::Mei::Loc.pop_graph(subject)
       repo.query(:subject=>::RDF::URI.new(subject), :predicate=>Mei::Loc.qskos('broader')).each_statement do |result_statement|
         if !result_statement.object.literal? and result_statement.object.uri?
           broader_label = nil
@@ -148,7 +148,7 @@ module Mei
           #if Mei::Loc.repo.query(:subject=>::RDF::URI.new(broader_uri), :predicate=>Mei::Loc.qskos('narrower'), :object=>::RDF::URI.new(subject)).count > 0
           valid = false
 
-          broader_repo = pop_graph(broader_uri)
+          broader_repo = ::Mei::Loc.pop_graph(broader_uri)
           broader_repo.query(:subject=>::RDF::URI.new(broader_uri)).each_statement do |broader_statement|
             if broader_statement.predicate.to_s == Mei::Loc.qskos('prefLabel')
               broader_label ||= broader_statement.object.value if broader_statement.object.literal?
@@ -164,17 +164,14 @@ module Mei
         end
       end
 
-      puts 'pre-a'
       repo.query(:subject=>::RDF::URI.new(subject), :predicate=>Mei::Loc.qskos('narrower')).each_statement do |result_statement|
-        puts 'a'
         if !result_statement.object.literal? and result_statement.object.uri?
           narrower_label = nil
           narrower_uri = result_statement.object.to_s
           valid = false
 
-          narrower_repo = pop_graph(narrower_uri)
-          puts 'b'
-          puts narrower_uri
+          narrower_repo = ::Mei::Loc.pop_graph(narrower_uri)
+
           narrower_repo.query(:subject=>::RDF::URI.new(narrower_uri)).each_statement do |narrower_statement|
             if narrower_statement.predicate.to_s == Mei::Loc.qskos('prefLabel')
               narrower_label ||= narrower_statement.object.value if narrower_statement.object.literal?
