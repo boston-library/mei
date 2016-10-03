@@ -22,7 +22,7 @@ Gem::Specification.new do |s|
   s.add_dependency "active-fedora"
   s.add_dependency "gon"
   s.add_dependency 'curation_concerns', '>= 1.6.1'
-  s.add_dependency "qa", '0.5.0'
+  s.add_dependency "qa"
   s.add_dependency 'rest-client', '1.8.0'
   s.add_dependency 'rest-client-components' #Broken in RestClient 2.0: https://github.com/crohr/rest-client-components/issues/13
   s.add_dependency 'rack-cache'
