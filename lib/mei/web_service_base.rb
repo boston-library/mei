@@ -1,40 +1,31 @@
 require 'rest_client'
+require 'restclient/components'
+require 'rack/cache'
 
 module Mei
   module WebServiceBase
     attr_accessor :raw_response
 
-    def skip_cache_request(uri)
-      r = RestClient.get uri
-      JSON.parse(r)
-    end
-
     # mix-in to retreive and parse JSON content from the web
-    def get_json(subject)
-      r = RestClient.get Mei::WebServiceBase.ldf_server + subject + '.jsonld'
+    def get_json(url)
+      RestClient.enable Rack::Cache
+      r = RestClient.get url, request_options
+      RestClient.disable Rack::Cache
       JSON.parse(r)
+
     end
 
-    def get_ttl(subject)
-      r = RestClient.get Mei::WebServiceBase.ldf_server + subject + '.ttl'#, { accept: :ttl }
+    def request_options
+      { accept: :json }
+    end
+
+    def get_xml(url)
+      RestClient.enable Rack::Cache
+      r = RestClient.get url
+      RestClient.disable Rack::Cache
       r
     end
 
-    def get_nt(subject)
-      r = RestClient.get Mei::WebServiceBase.ldf_server + subject + '.nt'
-      r
-    end
-
-    def self.ldf_server
-      @ldf_server ||= Mei::TermsController.mei_config["ldf_server"]
-    end
-
-    def ensure_array(obj)
-      if obj.class == Hash
-        return [obj]
-      end
-      return obj
-    end
 
 
   end

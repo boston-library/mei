@@ -1,6 +1,21 @@
 = Mei
 
 This adds a Metadata Enrichment Interface to a Hydra / ActiveFedora based project and uses Linked Data Fragments to resolve uris.
+Currently in an alpha state 
 
-You would install this (once implemented) by adding the following to your Gemfile:
+## Installation
+
+Add the following to your Gemfile:
+
+```
 gem 'mei'
+```
+
+The run:
+
+    $ rails generate mei:install
+
+
+## Further configuration
+
+See slides on this setup at https://goo.gl/BP2inf .

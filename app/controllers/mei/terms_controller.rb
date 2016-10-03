@@ -11,6 +11,7 @@ class Mei::TermsController < ApplicationController
     e = params.fetch("e", "")
     field = params[:term]
 
+    ldf_server = Mei::TermsController.mei_config[:ldf_server]
     selected_config = Mei::TermsController.mei_config[:form_fields].select { |item| item["id"] == field}
     return [] if selected_config.blank?
 

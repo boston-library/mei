@@ -5,6 +5,42 @@ module Mei
 
     include Mei::WebServiceBase
 
+    def self.pop_graph(value)
+      RDF::Graph.load("#{Mei::Loc.ldf_config[:ldf_server]}#{value}.ttl", format: :ttl)
+    end
+
+    def self.ldf_config
+      @ldf_config ||= YAML::load(File.open(ldf_config_path))[env]
+                                 .with_indifferent_access
+    end
+
+    def self.app_root
+      return @app_root if @app_root
+      @app_root = Rails.root if defined?(Rails) and defined?(Rails.root)
+      @app_root ||= APP_ROOT if defined?(APP_ROOT)
+      @app_root ||= '.'
+    end
+
+    def self.env
+      return @env if @env
+      #The following commented line always returns "test" in a rails c production console. Unsure of how to fix this yet...
+      #@env = ENV["RAILS_ENV"] = "test" if ENV
+      @env ||= Rails.env if defined?(Rails) and defined?(Rails.root)
+      @env ||= 'development'
+    end
+
+    def self.ldf_config_path
+      File.join(app_root, 'config', 'mei.yml')
+    end
+
+    def self.qskos value
+      if value.match(/^sh\d+/)
+        return ::RDF::URI.new("http://id.loc.gov/authorities/subjects/#{value}")
+      else
+        return ::RDF::URI.new("http://www.w3.org/2004/02/skos/core##{value}")
+      end
+    end
+
     def initialize(subauthority, solr_field)
       @subauthority = subauthority
       @solr_field = solr_field
@@ -12,7 +48,7 @@ module Mei
     end
 
     def search q
-      @raw_response = skip_cache_request(build_query_url(q))
+      @raw_response = get_json(build_query_url(q))
       parse_authority_response
     end
 
@@ -30,10 +66,13 @@ module Mei
       end_response = []
       position_counter = 0
       @raw_response.select {|response| response[0] == "atom:entry"}.map do |response|
-          threaded_responses << Thread.new(position_counter) { |local_pos|
-            end_response[local_pos] = loc_response_to_qa(response_to_struct(response), position_counter)
-          }
-          position_counter+=1
+        threaded_responses << Thread.new(position_counter) { |local_pos|
+          end_response[local_pos] = loc_response_to_qa(response_to_struct(response), position_counter)
+        }
+        position_counter+=1
+        #sleep(0.05)
+
+        #loc_response_to_qa(response_to_struct(response))
       end
       threaded_responses.each { |thr|  thr.join }
       end_response
@@ -44,22 +83,20 @@ module Mei
       json_link = data.links.select { |link| link.first == 'application/json' }
       if json_link.present?
         json_link = json_link[0][1]
-        #puts 'Json Link is: ' + json_link
-        #item_response = get_json(json_link.gsub('.json','.rdf'))
-        #item_response = Nokogiri::XML(get_xml(json_link.gsub('.json','.rdf'))).remove_namespaces!
 
         broader, narrower, variants = get_skos_concepts(json_link.gsub('.json',''))
       end
 
       #count = ActiveFedora::Base.find_with_conditions("subject_tesim:#{data.id.gsub('info:lc', 'http://id.loc.gov').gsub(':','\:')}", rows: '100', fl: 'id' ).length
       #FIXME
-      count = ActiveFedora::Base.find_with_conditions("#{@solr_field}:#{solr_clean(data.id.gsub('info:lc', 'http://id.loc.gov'))}", rows: '100', fl: 'id' ).length
-
+      count = ActiveFedora::Base.search_with_conditions("#{@solr_field}:#{solr_clean(data.id.gsub('info:lc', 'http://id.loc.gov'))}", rows: '100', fl: 'id' ).length
+      #count = 0
       if count >= 99
         count = "99+"
       else
         count = count.to_s
       end
+
 
 
       {
@@ -102,56 +139,64 @@ module Mei
       variant_list = []
 
       #xml_response = Nokogiri::XML(response).remove_namespaces!
-      response = get_json(subject)
 
-      if response["skos:broader"].present?
-        ensure_array(response["skos:broader"]).each do |broader_uri|
-          #Used due to "Medicine" vs "Medicine":  http://id.loc.gov/authorities/subjects/sh00006614.html vs http://id.loc.gov/authorities/subjects/sh85083064.html
-          # See discussion at: https://etherpad.wikimedia.org/p/Hydra-LDP-20160303
-          potential_label = nil
-          #unless broader_uri["@id"].match(/^\_\:t/) #blank node
-            relation_response = get_json(broader_uri["@id"])
-            invalid = nil
-            #invalid = ensure_array(relation_response["mads:isMemberOfMADSCollection"]).select { |obj| obj["@id"] == 'http://id.loc.gov/authorities/subjects/collection_Subdivisions' } if broader_uri["mads:isMemberOfMADSCollection"].present?
-            if invalid.blank?
-              ensure_array(relation_response["skos:prefLabel"]).each do |potential_label_ele|
-                potential_label ||= potential_label_ele["@value"]
-              end
-              potential_label ||= broader_uri
-              broader_list << {:uri_link=>broader_uri["@id"], :label=>potential_label}
+      repo = pop_graph(subject)
+      repo.query(:subject=>::RDF::URI.new(subject), :predicate=>Mei::Loc.qskos('broader')).each_statement do |result_statement|
+        if !result_statement.object.literal? and result_statement.object.uri?
+          broader_label = nil
+          broader_uri = result_statement.object.to_s
+          #if Mei::Loc.repo.query(:subject=>::RDF::URI.new(broader_uri), :predicate=>Mei::Loc.qskos('narrower'), :object=>::RDF::URI.new(subject)).count > 0
+          valid = false
+
+          broader_repo = pop_graph(broader_uri)
+          broader_repo.query(:subject=>::RDF::URI.new(broader_uri)).each_statement do |broader_statement|
+            if broader_statement.predicate.to_s == Mei::Loc.qskos('prefLabel')
+              broader_label ||= broader_statement.object.value if broader_statement.object.literal?
             end
-          #end
-        end
 
-      end
-
-      if response["skos:narrower"].present?
-        ensure_array(response["skos:narrower"]).each do |narrower_uri|
-          potential_label = nil
-          unless narrower_uri["@id"].match(/^\_\:t/) #blank node
-            relation_response = get_json(narrower_uri["@id"])
-            invalid = nil
-            #invalid = ensure_array(relation_response["mads:isMemberOfMADSCollection"]).select { |obj| obj["@id"] == 'http://id.loc.gov/authorities/subjects/collection_Subdivisions' } if narrower_uri["mads:isMemberOfMADSCollection"].present?
-            if invalid.blank?
-              ensure_array(relation_response["skos:prefLabel"]).each do |potential_label_ele|
-                potential_label ||= potential_label_ele["@value"]
-              end
-              potential_label ||= broader_uri
-              narrower_list << {:uri_link=>narrower_uri["@id"], :label=>potential_label}
+            if broader_statement.predicate.to_s == Mei::Loc.qskos('member')
+              valid = true if broader_statement.object.to_s == 'http://id.loc.gov/authorities/subjects/collection_LCSHAuthorizedHeadings'
             end
           end
+          broader_label ||= broader_uri
+          broader_list << {:uri_link=>broader_uri, :label=>broader_label} if valid
+          #end
         end
       end
 
-      if response["skos:altLabel"].present?
-        ensure_array(response["skos:altLabel"]).each do |alt_labels|
-          variant_list << alt_labels["@value"]
+      puts 'pre-a'
+      repo.query(:subject=>::RDF::URI.new(subject), :predicate=>Mei::Loc.qskos('narrower')).each_statement do |result_statement|
+        puts 'a'
+        if !result_statement.object.literal? and result_statement.object.uri?
+          narrower_label = nil
+          narrower_uri = result_statement.object.to_s
+          valid = false
+
+          narrower_repo = pop_graph(narrower_uri)
+          puts 'b'
+          puts narrower_uri
+          narrower_repo.query(:subject=>::RDF::URI.new(narrower_uri)).each_statement do |narrower_statement|
+            if narrower_statement.predicate.to_s == Mei::Loc.qskos('prefLabel')
+              narrower_label ||= narrower_statement.object.value if narrower_statement.object.literal?
+            end
+
+            if narrower_statement.predicate.to_s == Mei::Loc.qskos('member')
+              valid = true if narrower_statement.object.to_s == 'http://id.loc.gov/authorities/subjects/collection_LCSHAuthorizedHeadings'
+            end
+          end
+          narrower_label ||= narrower_uri
+          narrower_list << {:uri_link=>narrower_uri, :label=>narrower_label} if valid
         end
       end
 
+      repo.query(:subject=>::RDF::URI.new(subject), :predicate=>Mei::Loc.qskos('altLabel')).each_statement do |result_statement|
+        variant_list << result_statement.object.value if result_statement.object.literal?
+      end
 
       return broader_list, narrower_list, variant_list
     end
+
+
 
 
   end

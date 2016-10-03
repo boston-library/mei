@@ -1,11 +1,44 @@
-class MeiMultiLookupInput < MultiBaseInput
-  include WithHelpIcon
-
+class MeiMultiLookupInput < MultiValueInput
   # Overriding this so that the class is correct and the javascript for multivalue will work on this.
   def input_type
-    'repeat_field_value'.freeze
+    'multi_value'.freeze
   end
 
+  def inner_wrapper
+    <<-HTML
+          <li class="field-wrapper">
+<div class="input-group col-sm-12">
+            #{yield}
+             <button style="width:auto;" type="button" class="btn btn-default" data-toggle="modal" data-target="#meiLookupModal_#{attribute_name}">Lookup</button>
+</div>
+          </li>
+    HTML
+  end
+
+  # Although the 'index' parameter is not used in this implementation it is useful in an
+  # an overridden version of this method, especially when the field is a complex object and
+  # the override defines nested fields.
+  def build_field_options(value, index)
+    options = input_html_options.dup
+
+    options[:value] = value
+    if @rendered_first_element
+      options[:id] = nil
+      options[:required] = nil
+    else
+      options[:id] ||= input_dom_id
+    end
+    options[:class] ||= []
+    options[:class] += ["#{input_dom_id} form-control multi-text-field"]
+    options[:style] ||= []
+    options[:style] += ["width:80%"]
+    options[:'aria-labelledby'] = label_id
+    @rendered_first_element = true
+
+    options
+  end
+
+=begin
   def inner_wrapper
     <<-HTML
           <li class="field-wrapper">
@@ -23,20 +56,5 @@ class MeiMultiLookupInput < MultiBaseInput
           </li>
     HTML
   end
-
-  def build_field(value, index)
-    options = build_field_options(value, index)
-    if options.delete(:type) == 'textarea'.freeze
-      @builder.text_area(attribute_name, options)
-    else
-      @builder.text_field(attribute_name, options)
-    end
-  end
-
-
-
-
-
-
-
+=end
 end
