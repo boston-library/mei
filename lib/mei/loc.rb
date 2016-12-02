@@ -55,7 +55,7 @@ module Mei
 
     def build_query_url q
       escaped_query = URI.escape(q)
-      authority_fragment = Qa::Authorities::Loc.get_url_for_authority(@subauthority) + URI.escape(@subauthority)
+      authority_fragment = ::Qa::Authorities::Loc.get_url_for_authority(@subauthority) + URI.escape(@subauthority)
       return "http://id.loc.gov/search/?q=#{escaped_query}&q=#{authority_fragment}&format=json"
     end
 
@@ -87,10 +87,9 @@ module Mei
         broader, narrower, variants = get_skos_concepts(json_link.gsub('.json',''))
       end
 
-      #count = ActiveFedora::Base.find_with_conditions("subject_tesim:#{data.id.gsub('info:lc', 'http://id.loc.gov').gsub(':','\:')}", rows: '100', fl: 'id' ).length
       #FIXME
-      count = ActiveFedora::Base.search_with_conditions("#{@solr_field}:#{solr_clean(data.id.gsub('info:lc', 'http://id.loc.gov'))}", rows: '100', fl: 'id' ).length
-      #count = 0
+      #count = ActiveFedora::Base.search_with_conditions("#{@solr_field}:#{solr_clean(data.id.gsub('info:lc', 'http://id.loc.gov'))}", rows: '100', fl: 'id' ).length
+      count = 0
       if count >= 99
         count = "99+"
       else

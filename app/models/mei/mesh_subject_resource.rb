@@ -1,7 +1,8 @@
 module Mei
-  class GeoNamesResource
+  class MeshSubjectResource
+
     def self.find(subject, type, solr_field)
-      authority_check = Mei::Geonames.new(type)
+      authority_check = Mei::Mesh.new(type, solr_field)
       authority_result = authority_check.search(subject) #URI escaping doesn't work for Baseball fields?
       if authority_result.present?
         return authority_result
@@ -9,6 +10,5 @@ module Mei
         return []
       end
     end
-
   end
 end

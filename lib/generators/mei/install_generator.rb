@@ -7,12 +7,6 @@ module Mei
 
     desc "InstallGenerator Mei Engine"
 
-    def verify_curation_concerns_installed
-      if !IO.read('Gemfile').include?('curation_concerns')
-        raise "It doesn't look like you have curation_concerns installed..."
-      end
-    end
-
     def insert_to_assets
       generate 'mei:localassets'
     end

@@ -18,10 +18,8 @@ class Mei::TermsController < ApplicationController
     hits = case selected_config.first["adapter"].to_sym
              when :lcsh
                Mei::LcshSubjectResource.find(s,e,selected_config.first["solr_field"])
-             when :geonames
-               Mei::GeoNamesResource.find(s,e,selected_config.first["solr_field"])
-             when :homosaurus
-               Mei::HomosaurusSubjectResource.find(s,e,selected_config.first["solr_field"])
+             when :mesh
+               Mei::MeshSubjectResource.find(s,e,selected_config.first["solr_field"])
              else
                []
            end
